@@ -1,0 +1,76 @@
+using Gml.Domains.Auth;
+using Gml.Domains.Settings;
+using Gml.Domains.User;
+using Microsoft.EntityFrameworkCore;
+
+namespace Gml.Web.Api.Data;
+
+public class DatabaseContext(DbContextOptions<DatabaseContext> options) : DbContext(options)
+{
+    public DbSet<DbUser> Users { get; set; }
+    public DbSet<Settings> Settings { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+    public DbSet<Role> Roles { get; set; }
+    public DbSet<Permission> Permissions { get; set; }
+    public DbSet<RolePermission> RolePermissions { get; set; }
+    public DbSet<UserRole> UserRoles { get; set; }
+
+    public DbSet<ExternalApplication> ExternalApplications { get; set; }
+    public DbSet<ApplicationPermission> ApplicationPermissions { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Composite keys for join entities
+        modelBuilder.Entity<RolePermission>()
+            .HasKey(rp => new { rp.RoleId, rp.PermissionId });
+
+        modelBuilder.Entity<UserRole>()
+            .HasKey(ur => new { ur.UserId, ur.RoleId });
+
+        // Relationships: RolePermission
+        modelBuilder.Entity<RolePermission>()
+            .HasOne(rp => rp.Role)
+            .WithMany(r => r.RolePermissions)
+            .HasForeignKey(rp => rp.RoleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RolePermission>()
+            .HasOne(rp => rp.Permission)
+            .WithMany(p => p.RolePermissions)
+            .HasForeignKey(rp => rp.PermissionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Relationships: UserRole
+        modelBuilder.Entity<UserRole>()
+            .HasOne(ur => ur.Role)
+            .WithMany(r => r.UserRoles)
+            .HasForeignKey(ur => ur.RoleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserRole>()
+            .HasOne(ur => ur.DbUser)
+            .WithMany()
+            .HasForeignKey(ur => ur.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Composite key for ApplicationPermission
+        modelBuilder.Entity<ApplicationPermission>()
+            .HasKey(ap => new { ap.ApplicationId, ap.PermissionId });
+
+        // Relationships: ApplicationPermission
+        modelBuilder.Entity<ApplicationPermission>()
+            .HasOne(ap => ap.Application)
+            .WithMany(a => a.ApplicationPermissions)
+            .HasForeignKey(ap => ap.ApplicationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ApplicationPermission>()
+            .HasOne(ap => ap.Permission)
+            .WithMany()
+            .HasForeignKey(ap => ap.PermissionId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
